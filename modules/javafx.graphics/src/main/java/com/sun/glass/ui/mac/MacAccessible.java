@@ -831,6 +831,7 @@ final class MacAccessible extends Accessible {
         if (this.peer == 0L) {
             AccessibleRole role = (AccessibleRole) getAttribute(ROLE);
             if (role == null) role = AccessibleRole.NODE;
+//            System.out.println("Creating peer for " + role.toString());
             this.peer = _createAccessiblePeer(role.toString());
             if (this.peer == 0L) {
                 throw new RuntimeException("could not create platform accessible");

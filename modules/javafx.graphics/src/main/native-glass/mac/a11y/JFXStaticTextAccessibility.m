@@ -48,7 +48,34 @@
 
 - (NSString *)accessibilityValue
 {
-    return [super accessibilityValue];
+    NSString *val = [super accessibilityValue];
+    return val;
+}
+
+- (NSRange)accessibilityVisibleCharacterRange
+{
+    jobject jresult = NULL;
+    GET_MAIN_JENV;
+    if (env == NULL) return NSMakeRange(0, 0);;
+    jresult = (jobject)(*env)->CallLongMethod(env, [self getJAccessible],
+                                              jAccessibilityAttributeValue, (jlong)@"AXVisibleCharacterRange");
+    GLASS_CHECK_EXCEPTION(env);
+    return [variantToID(env, jresult) rangeValue];
+}
+
+- (NSAttributedString *) accessibilityAttributedStringForRange:(NSRange)range
+{
+    id parameter = [NSValue valueWithRange:range];
+    jobject jresult = NULL;
+    GET_MAIN_JENV;
+    if (env == NULL) return NULL;
+    jresult = (jobject)(*env)->CallLongMethod(env, [self getJAccessible],
+                                              jAccessibilityAttributeValueForParameter,
+                                              (jlong)@"AXAttributedStringForRange", (jlong)parameter);
+    GLASS_CHECK_EXCEPTION(env);
+    NSAttributedString * retval = variantToID(env, jresult);
+    NSLog(@"Returning attributedSubString: %@", retval);
+    return retval;
 }
 
 @end

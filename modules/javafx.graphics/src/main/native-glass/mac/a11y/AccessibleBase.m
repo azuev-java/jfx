@@ -40,7 +40,7 @@ static NSMutableDictionary * rolesMap;
      * All JavaFX roles and corresponding available properties are defined in
      * enum javafx.scene.AccessibleRole
      */
-    rolesMap = [[NSMutableDictionary alloc] initWithCapacity:9];
+    rolesMap = [[NSMutableDictionary alloc] initWithCapacity:11];
 
     [rolesMap setObject:@"JFXButtonAccessibility" forKey:@"BUTTON"];
     [rolesMap setObject:@"JFXButtonAccessibility" forKey:@"DECREMENT_BUTTON"];
@@ -53,7 +53,8 @@ static NSMutableDictionary * rolesMap;
     [rolesMap setObject:@"JFXCheckboxAccessibility" forKey:@"CHECK_BOX"];
     [rolesMap setObject:@"JFXCheckboxAccessibility" forKey:@"TOGGLE_BUTTON"];
     [rolesMap setObject:@"JFXStaticTextAccessibility" forKey:@"TEXT"];
-
+    [rolesMap setObject:@"JFXNavigableTextAccessibility" forKey:@"TEXT_FIELD"];
+    [rolesMap setObject:@"JFXNavigableTextAccessibility" forKey:@"TEXT_AREA"];
 }
 
 + (Class) getComponentAccessibilityClass:(NSString *)role
@@ -61,6 +62,8 @@ static NSMutableDictionary * rolesMap;
     if (rolesMap == nil) {
         [self initializeRolesMap];
     }
+
+    NSLog(@"Role requested: %@", role);
 
     NSString *className = [rolesMap objectForKey:role];
     if (className != nil) {
@@ -95,6 +98,16 @@ static NSMutableDictionary * rolesMap;
     return self->jAccessible;
 }
 
+- (NSString *)getJavaRole
+{
+    return self->jRole;
+}
+
+- (void)setJavaRole:(NSString *)newRole
+{
+    self->jRole = [newRole copy];
+}
+
 - (id)accessibilityValue
 {
     jobject jresult = NULL;
@@ -127,6 +140,27 @@ static NSMutableDictionary * rolesMap;
         parent = variantToID(env, jresult);
     }
     return parent;
+}
+
+- (NSArray *)accessibilityChildren
+{
+    NSLog(@"%@ requesting children list", [self accessibilityRole]);
+    jobject jresult = NULL;
+    GET_MAIN_JENV;
+    if (env == NULL) return NULL;
+    jresult = (jobject)(*env)->CallLongMethod(env, self->jAccessible, jAccessibilityAttributeValue,
+                                              (jlong) @"AXChildren");
+    GLASS_CHECK_EXCEPTION(env);
+    NSArray * result = variantToID(env, jresult);
+    for (int i = 0; i < [result count]; i++) {
+        if ([result[i] respondsToSelector:@selector(roleAndValue)]) {
+            NSLog(@"child[%d] = %@", i, [result[i] roleAndValue]);
+        } else {
+                NSLog(@"child[%d] = %@", i, result[i]);
+        }
+    }
+
+    return result;
 }
 
 // Actions support
@@ -192,6 +226,29 @@ static NSMutableDictionary * rolesMap;
     GLASS_CHECK_EXCEPTION(env);
 }
 
+- (id)accessibilityHitTest:(NSPoint)point
+{
+    id result = NULL;
+    GET_MAIN_JENV;
+    if (env == NULL) return NULL;
+    result = (id)(*env)->CallLongMethod(env, self->jAccessible, jAccessibilityHitTest, point.x, point.y);
+    GLASS_CHECK_EXCEPTION(env);
+    NSLog(@"NEW!!! accessibilityHitTest(%@) returns %@", [NSValue valueWithPoint:point], result);
+    return result;
+}
+
+/*
+ * Debug related methods
+ */
+
+- (NSString *)roleAndValue
+{
+    NSString *retVal = [NSString stringWithFormat:@"New Role: %@ Value:%@",
+                       [self accessibilityRole],
+                       [self accessibilityValue]];
+    return retVal;
+}
+
 @end
 
 /*
@@ -206,6 +263,9 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacAccessible__1createAccessib
     Class classType = [AccessibleBase getComponentAccessibilityClass:roleName];
     NSObject* accessible = NULL;
     accessible = [[classType alloc] initWithEnv: env accessible: jAccessible];
+    if ([accessible isKindOfClass:[AccessibleBase class]]) {
+        [(AccessibleBase *)accessible setJavaRole:roleName];
+    }
     return ptr_to_jlong(accessible);
 }
 
@@ -248,3 +308,6 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacAccessible__1invalidateParen
         [((AccessibleBase*) accessible) clearParent];
     }
 }
+
+
+

@@ -37,6 +37,10 @@
     if (self != nil) {
         self->jAccessible = (*env)->NewGlobalRef(env, acc);
     }
+    NSLog(@"Initializing with role %@", [self accessibilityAttributeValueImpl:@"AXRole"]);
+    if ([@"AXStaticText" isEqualToString:[self accessibilityAttributeValueImpl:@"AXRole"]]) {
+        NSLog(@"%@", NSThread.callStackSymbols);
+    }
     return self;
 }
 
@@ -69,6 +73,11 @@
 }
 
 - (id)accessibilityAttributeValue:(NSString *)attribute
+{
+    return [self accessibilityAttributeValueImpl:attribute];
+}
+
+- (id)accessibilityAttributeValueImpl:(NSString *)attribute
 {
     jobject jresult = NULL;
     GET_MAIN_JENV;
@@ -204,6 +213,7 @@
     if (env == NULL) return NULL;
     result = (id)(*env)->CallLongMethod(env, self->jAccessible, jAccessibilityHitTest, point.x, point.y);
     GLASS_CHECK_EXCEPTION(env);
+    NSLog(@"accessibilityHitTest(%@) returns %@", [NSValue valueWithPoint:point], result);
     return result;
 }
 
@@ -221,6 +231,15 @@
 {
     return YES;
 }
+
+- (NSString *)roleAndValue
+{
+    NSString *retVal = [NSString stringWithFormat:@"Old Role: %@ Value:%@",
+                                                  [self accessibilityAttributeValueImpl:@"AXRole"],
+                                                  [self accessibilityAttributeValueImpl:@"AXValue"]];
+    return retVal;
+}
+
 
 @end
 
@@ -686,6 +705,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_glass_ui_mac_MacAccessible_isEqualToStri
 JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacAccessible_NSAccessibilityPostNotification
   (JNIEnv *env, jclass jClass, jlong element, jlong notification)
 {
+    NSLog(@"Posting notification on %@ about %@", (id)jlong_to_ptr(element), (NSString*)jlong_to_ptr(notification));
     NSAccessibilityPostNotification((id)jlong_to_ptr(element), (NSString*)jlong_to_ptr(notification));
 }
 
@@ -724,6 +744,7 @@ JNIEXPORT jstring JNICALL Java_com_sun_glass_ui_mac_MacAccessible_NSAccessibilit
 JNIEXPORT jobject JNICALL Java_com_sun_glass_ui_mac_MacAccessible_GlassAccessibleToMacAccessible
   (JNIEnv *env, jclass jClass, jlong glassAccessible)
 {
+    NSLog(@"GlassAccessibleToMacAccessible for %@", (id)jlong_to_ptr(glassAccessible));
     GlassAccessible* accessible = (GlassAccessible*)jlong_to_ptr(glassAccessible);
     return accessible ? [accessible getJAccessible] : NULL;
 }
